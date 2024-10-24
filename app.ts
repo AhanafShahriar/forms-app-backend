@@ -9,7 +9,12 @@ import userRoutes from "./routes/userRoutes";
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
-
+app.use(
+  cors({
+    origin: "https://forms-app-frontend-9910.onrender.com/", // Your frontend URL
+    credentials: true,
+  })
+);
 app.use(cors());
 app.use(express.json());
 
