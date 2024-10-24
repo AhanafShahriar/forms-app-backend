@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  role              Role      @default(USER)
+  createdTemplates  Template[] @relation("TemplateAuthor")
+  forms             Form[]    @relation("FormUser ")
+  comments          Comment[]  @relation("CommentUser ")
+  likes             Like[]     @relation("LikeUser ")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  language          Language  @default(ENGLISH)
+  theme             Theme     @default(LIGHT)
+  allowedTemplates Template[] @relation("AllowedTemplateUsers")
+}
+
+model Template {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String
+  topic       String
+  public      Boolean    @default(true)
+  tags        Tag[]      @relation("TemplateTags")
+  questions   Question[] @relation("TemplateQuestions")
+  author      User       @relation("TemplateAuthor", fields: [authorId], references: [id])
+  authorId    Int
+  forms       Form[]     @relation("TemplateForms")
+  comments    Comment[]  @relation("TemplateComments")
+  likes       Like[]     @relation("TemplateLikes")
+  imageUrl String?
+  
+  allowedUsers User[]    @relation("AllowedTemplateUsers")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+
+
+model Form {
+  id         Int       @id @default(autoincrement())
+  answers    Answer[]  @relation("FormAnswers")
+  template   Template  @relation("TemplateForms", fields: [templateId], references: [id])
+  templateId Int
+  user       User      @relation("FormUser ", fields: [userId], references: [id])
+  userId     Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Answer {
+  id         Int       @id @default(autoincrement())
+  form       Form      @relation("FormAnswers", fields: [formId], references: [id])
+  formId     Int
+  question   Question  @relation("QuestionAnswers", fields: [questionId], references: [id])
+  questionId Int
+  value      String    // Store answer value as a string
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Comment {
+  id         Int       @id @default(autoincrement())
+  content    String
+  template   Template  @relation("TemplateComments", fields: [templateId], references: [id])
+  templateId Int
+  user       User      @relation("CommentUser ", fields: [userId], references: [id])
+  userId     Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Like {
+  id         Int       @id @default(autoincrement())
+  template   Template  @relation("TemplateLikes", fields: [templateId], references: [id])
+  templateId Int
+  user       User      @relation("LikeUser ", fields: [userId], references: [id])
+  userId     Int
+  createdAt  DateTime  @default(now())
+}
+
+model Tag {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique
+  templates  Template[] @relation("TemplateTags")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum QuestionType {
+  SINGLE_LINE
+  MULTI_LINE
+  INTEGER
+  CHECKBOX
+}
+enum Language {
+  ENGLISH
+  SPANISH
+  RUSSIAN
+}
+
+enum Theme {
+  LIGHT
+  DARK
+}
+
+model Question {
+  id         Int        @id @default(autoincrement())
+  
+  title String
+  description String
+  type       QuestionType
+  template   Template  @relation("TemplateQuestions", fields: [templateId], references: [id])
+  templateId Int
+  displayedInTable Boolean   @default(false)
+  options Option[] @relation("QuestionOptions")
+  answers    Answer[]  @relation("QuestionAnswers")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Option {
+  id String @id @default(cuid())
+  questionId Int
+  value String
+  question Question @relation("QuestionOptions", fields: [questionId], references: [id])
+}
