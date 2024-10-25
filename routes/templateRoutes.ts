@@ -13,6 +13,7 @@ import {
   deleteComment,
   deleteTemplate,
   getTags,
+  likeTemplate,
 } from "../controllers/templateController";
 import { authMiddleware } from "../middlewares/authMiddleware";
 
@@ -37,5 +38,5 @@ router.delete(
   authMiddleware,
   deleteComment
 );
-
+router.post("/:templateId/like", authMiddleware, likeTemplate);
 export default router;
