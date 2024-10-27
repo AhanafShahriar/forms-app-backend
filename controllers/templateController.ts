@@ -144,10 +144,7 @@ export const getTemplates: RequestHandler = async (
 };
 
 // Search templates based on query
-export const searchTemplates: RequestHandler = async (
-  req,
-  res
-): Promise<void> => {
+export const searchTemplates: RequestHandler = async (req, res) => {
   const query = req.query.query as string | undefined;
 
   if (!query) {
@@ -161,8 +158,19 @@ export const searchTemplates: RequestHandler = async (
         OR: [
           { title: { contains: query, mode: "insensitive" } },
           { description: { contains: query, mode: "insensitive" } },
+          { topic: { contains: query, mode: "insensitive" } },
           {
             tags: { some: { name: { contains: query, mode: "insensitive" } } },
+          },
+          {
+            questions: {
+              some: {
+                OR: [
+                  { title: { contains: query, mode: "insensitive" } },
+                  { description: { contains: query, mode: "insensitive" } },
+                ],
+              },
+            },
           },
           {
             comments: {
@@ -174,10 +182,13 @@ export const searchTemplates: RequestHandler = async (
       include: {
         tags: true,
         comments: true,
+        questions: true, // Include questions if needed in the response
       },
     });
+
     res.status(200).json(templates);
   } catch (error) {
+    console.error("Error searching templates:", error);
     res.status(500).json({ message: "Error searching templates", error });
   }
 };
