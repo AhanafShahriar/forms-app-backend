@@ -28,7 +28,7 @@ router.get("/tags", getTags); // Remove authMiddleware
 router.post("/", authMiddleware, createTemplate);
 router.get("/search", searchTemplates);
 router.get("/:templateId", getTemplateById);
-router.get("/:templateId/comments", authMiddleware, getTemplateComments);
+router.get("/:templateId/comments", getTemplateComments);
 router.post("/:templateId/comments", authMiddleware, createComment);
 router.put("/:templateId", authMiddleware, editTemplate);
 router.delete("/:templateId", authMiddleware, deleteTemplate);

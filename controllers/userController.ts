@@ -3,6 +3,43 @@ import prisma from "../prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { JwtPayload } from "jsonwebtoken";
 
+// Update user preferences
+export const updateUserPreferences = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = (req.user as JwtPayload).id;
+  const { language, theme } = req.body;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(userId, 10) },
+      data: { language, theme },
+    });
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating user preferences", error });
+  }
+};
+
+// Get user preferences
+export const getUserPreferences = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = (req.user as JwtPayload).id;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId, 10) },
+      select: { language: true, theme: true },
+    });
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching user preferences", error });
+  }
+};
+
 // Get all users
 export const getAllUsers = async (
   req: Request,

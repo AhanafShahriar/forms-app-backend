@@ -2,8 +2,10 @@ import { Request, Response, RequestHandler } from "express";
 import prisma from "../prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
 
+// Define the User type or import it from your models or types file
 interface User {
-  id: number;
+  id: number; // Assuming you have an ID field
+  // Add other fields as necessary
 }
 
 // Create a new template with optional image upload
@@ -11,52 +13,26 @@ export const createTemplate = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const { title, description, topic, tags, questions, imageUrl } = req.body;
+  const {
+    title,
+    description,
+    topic,
+    tags,
+    questions,
+    imageUrl,
+    selectedUsers,
+  } = req.body;
   const isPublic = req.body.public; // Directly use the boolean value
   const userId = Number(req.user?.id);
 
   if (!userId) {
     res.status(400).json({ message: "User  ID is required." });
-    return; // Add return statement
+    return;
   }
 
-  // Log the request body for debugging
   console.log("Request body:", req.body);
 
-  let selectedUsers: User[] = [];
-  if (req.body.selectedUsers) {
-    const selectedUsersInput = req.body.selectedUsers;
-
-    // Check if selectedUsersInput is a non-empty string
-    if (
-      typeof selectedUsersInput === "string" &&
-      selectedUsersInput.trim() !== ""
-    ) {
-      try {
-        selectedUsers = JSON.parse(selectedUsersInput);
-      } catch (error) {
-        console.error("Error parsing selectedUsers:", error);
-        res.status(400).json({ message: "Invalid JSON for selectedUsers." });
-        return;
-      }
-    } else {
-      // Handle the case where selectedUsers is an empty string or not a string
-      console.warn("selectedUsers is empty or not a valid string.");
-    }
-  }
-
   try {
-    console.log("Creating template with data:", {
-      title,
-      description,
-      topic,
-      public: isPublic,
-      author: { connect: { id: userId } },
-      tags,
-      questions,
-      imageUrl,
-    });
-    // Create the template
     const newTemplate = await prisma.template.create({
       data: {
         title,
@@ -101,12 +77,16 @@ export const createTemplate = async (
       include: { author: true, tags: true },
     });
 
-    if (!isPublic && selectedUsers.length > 0) {
+    console.log("New Template Created:", newTemplate);
+
+    // Connect allowed users if the template is not public
+    if (!isPublic && Array.isArray(selectedUsers) && selectedUsers.length > 0) {
+      console.log("Connecting allowed users:", selectedUsers);
       await prisma.template.update({
         where: { id: newTemplate.id },
         data: {
           allowedUsers: {
-            connect: selectedUsers.map((user: User) => ({ id: user.id })),
+            connect: selectedUsers.map((userId: number) => ({ id: userId })),
           },
         },
       });
@@ -115,11 +95,8 @@ export const createTemplate = async (
     res.status(201).json(newTemplate);
   } catch (error: unknown) {
     console.error("Error creating template:", error);
-
-    // Type assertion to access the message property
     const errorMessage =
       (error as Error).message || "An unknown error occurred.";
-
     res
       .status(500)
       .json({ message: "Internal server error", error: errorMessage });
@@ -144,6 +121,7 @@ export const getTemplates: RequestHandler = async (
 };
 
 // Search templates based on query
+
 export const searchTemplates: RequestHandler = async (req, res) => {
   const query = req.query.query as string | undefined;
 
@@ -182,7 +160,7 @@ export const searchTemplates: RequestHandler = async (req, res) => {
       include: {
         tags: true,
         comments: true,
-        questions: true, // Include questions if needed in the response
+        questions: true,
       },
     });
 
@@ -206,7 +184,7 @@ export const getTemplateById: RequestHandler = async (
       include: {
         questions: {
           include: {
-            options: true,
+            options: true, // Include options for each question
           },
         },
         tags: true,
@@ -251,7 +229,7 @@ export const createComment: RequestHandler = async (
 ): Promise<void> => {
   const { templateId } = req.params;
   const { content } = req.body;
-  const userId = Number(req.user?.id);
+  const userId = Number(req.user?.id); // Updated access
 
   try {
     const comment = await prisma.comment.create({
@@ -267,19 +245,34 @@ export const createComment: RequestHandler = async (
   }
 };
 
-// Edit a template
-
 export const editTemplate: RequestHandler = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   const { templateId } = req.params;
-  const { title, description, topic, tags, questions, isPublic } = req.body; // Added title and description here
+  const {
+    title,
+    description,
+    topic,
+    tags,
+    questions,
+    public: isPublic,
+    allowedUsers,
+  } = req.body;
 
   try {
+    // Validate incoming data
+    if (!title || !description || !topic) {
+      res
+        .status(400)
+        .json({ message: "Title, description, and topic are required." });
+      return;
+    }
+
+    // Check if the template exists
     const existingTemplate = await prisma.template.findUnique({
       where: { id: Number(templateId) },
-      include: { questions: true },
+      include: { questions: true, allowedUsers: true },
     });
 
     if (!existingTemplate) {
@@ -287,14 +280,13 @@ export const editTemplate: RequestHandler = async (
       return;
     }
 
-    // Clear existing options first
+    // Clear existing options and questions
     await prisma.option.deleteMany({
       where: {
         questionId: { in: existingTemplate.questions.map((q) => q.id) },
       },
     });
 
-    // Clear existing questions
     await prisma.question.deleteMany({
       where: { templateId: Number(templateId) },
     });
@@ -308,15 +300,16 @@ export const editTemplate: RequestHandler = async (
             description: question.description,
             type: question.type,
             displayedInTable: question.displayedInTable,
-            template: { connect: { id: Number(templateId) } }, // Link to template
-            options:
-              question.type === "CHECKBOX" && Array.isArray(question.options)
-                ? {
-                    create: question.options.map((option: string) => ({
-                      value: option,
-                    })),
-                  }
-                : undefined,
+            template: {
+              connect: {
+                id: Number(templateId),
+              },
+            },
+            options: {
+              create: question.options.map((option: any) => ({
+                value: option.value, // Ensure this is a string
+              })),
+            },
           },
         });
         return createdQuestion;
@@ -340,11 +333,14 @@ export const editTemplate: RequestHandler = async (
         questions: {
           connect: createdQuestions.map((q) => ({ id: q.id })),
         },
+        allowedUsers: {
+          connect: allowedUsers.map((userId: number) => ({ id: userId })),
+        },
       },
-      include: { questions: true },
+      include: { questions: true, allowedUsers: true },
     });
 
-    res.json(updatedTemplate);
+    res.status(200).json(updatedTemplate);
   } catch (error) {
     console.error("Error updating template:", error);
     const errorMessage =
@@ -363,9 +359,16 @@ export const deleteTemplate: RequestHandler = async (
   const { templateId } = req.params;
 
   try {
+    // First, delete any related records (e.g., Questions)
+    await prisma.question.deleteMany({
+      where: { templateId: Number(templateId) },
+    });
+
+    // Now delete the template
     await prisma.template.delete({
       where: { id: Number(templateId) },
     });
+
     res.status(204).send();
   } catch (error) {
     console.error(error);
@@ -434,8 +437,10 @@ export const likeTemplate: RequestHandler = async (
     });
 
     if (existingLike) {
+      // If the user already liked the template, remove the like
       await prisma.like.delete({ where: { id: existingLike.id } });
     } else {
+      // Otherwise, create a new like
       await prisma.like.create({
         data: {
           template: { connect: { id: Number(templateId) } },
