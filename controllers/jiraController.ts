@@ -35,7 +35,7 @@ export const createJiraTicket = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const { summary, priority, templateTitle } = req.body;
+  const { summary, priority } = req.body;
   const userEmail = req.user?.email; // Ensure user is authenticated and email is available
   const pageLink = req.headers.referer || "Not specified";
 
