@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { JwtPayload } from "jsonwebtoken";
-
+import { getSalesforceAccessToken } from "../services/salesforceService";
 // Update user preferences
 export const updateUserPreferences = async (
   req: AuthRequest,
@@ -112,5 +112,65 @@ export const getUserTemplates = async (
     res.status(200).json(templates);
   } catch (error) {
     res.status(500).json({ message: "Error fetching user's templates", error });
+  }
+};
+//salesforce
+interface SalesforceResponse {
+  id: string;
+}
+
+export const createAccount = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { accountName, contactName, contactEmail } = req.body;
+
+  try {
+    const accessToken = await getSalesforceAccessToken();
+    console.log("Access Token:", accessToken);
+
+    if (!accessToken) {
+      res.status(500).json({ message: "Failed to retrieve access token." });
+      return;
+    }
+
+    const accountResponse = await axios.post<SalesforceResponse>(
+      `${process.env.SALESFORCE_API_URL}/sobjects/Account/`,
+      { Name: accountName },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const accountId = accountResponse.data?.id;
+    if (!accountId) {
+      res.status(500).json({ message: "Failed to create Account." });
+      return;
+    }
+
+    await axios.post(
+      `${process.env.SALESFORCE_API_URL}/sobjects/Contact/`,
+      {
+        LastName: contactName,
+        Email: contactEmail,
+        AccountId: accountId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res
+      .status(201)
+      .json({ message: "Account and Contact created successfully!" });
+  } catch (error) {
+    console.error("Error creating account or contact:", error);
+    res.status(500).json({ message: "Failed to create Account and Contact." });
   }
 };
