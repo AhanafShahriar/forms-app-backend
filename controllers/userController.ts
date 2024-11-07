@@ -3,6 +3,7 @@ import prisma from "../prisma/client";
 import { AuthRequest } from "../middlewares/authMiddleware";
 import { JwtPayload } from "jsonwebtoken";
 import { getSalesforceAccessToken } from "../services/salesforceService";
+import axios from "axios";
 // Update user preferences
 export const updateUserPreferences = async (
   req: AuthRequest,
