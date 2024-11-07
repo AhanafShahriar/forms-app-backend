@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes";
 import templateRoutes from "./routes/templateRoutes";
 import formRoutes from "./routes/formRoutes";
 import userRoutes from "./routes/userRoutes";
+import ticketRoutes from "./routes/ticketRoutes";
 
 dotenv.config();
 const app = express();
@@ -18,7 +19,7 @@ app.use("/templates", templateRoutes);
 app.use("/forms", formRoutes);
 app.use("/admin", userRoutes);
 app.use("/user", userRoutes);
-
+app.use("/api/tickets", ticketRoutes);
 export default app;
 app.listen(PORT, () => {
   console.log(`Server is running on port: ${PORT}`);
